@@ -1,0 +1,26 @@
+{
+	"$schema": "./node_modules/@emdash-cms/plugin-cli/schemas/emdash-plugin.schema.json",
+
+	"slug": "maintenance-mode",
+	// TODO: replace with the publisher's Atmosphere DID before the first release.
+	"publisher": "did:plc:placeholder000000000000",
+
+	"name": "Maintenance Mode & Coming Soon",
+	"description": "Show a maintenance or coming soon page to visitors. Editable with live edit; guests get in by secret link or password.",
+	"keywords": ["maintenance mode", "coming soon", "under construction", "prelaunch", "password page"],
+	"license": "LicenseRef-Commercial",
+	"author": { "name": "Federico Bempensato" },
+	// TODO: replace with a real security contact before the first release.
+	"security": { "email": "security@example.invalid" },
+	"repo": "https://github.com/bempensato/emdash-maintenance-mode",
+
+	// Trust contract — what runtime APIs the plugin asks for.
+	// Changing these between releases requires a version bump because
+	// installed users have consented to the old contract.
+	//
+	// - content:read      list the entries an administrator can pick as the maintenance page
+	// - network:request   license activation/validation, limited to allowedHosts
+	"capabilities": ["content:read", "network:request"],
+	"allowedHosts": ["api.lemonsqueezy.com"],
+	"storage": {}
+}
