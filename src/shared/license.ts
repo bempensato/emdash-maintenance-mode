@@ -47,9 +47,15 @@ function isBefore(nowMs: number, iso: string | null): boolean {
  * The badge rule used by the companion: show the badge unless it was hidden
  * and the license has not expired (or is still within its grace period).
  * Works without cron: an expired license brings the badge back by itself.
+ * A badge hidden for local development only shows again on any other host.
  */
-export function shouldShowBadge(badge: BadgeState, now: Date = new Date()): boolean {
+export function shouldShowBadge(
+	badge: BadgeState,
+	now: Date = new Date(),
+	hostname?: string,
+): boolean {
 	if (!badge.hidden) return true;
+	if (badge.devOnly) return hostname === undefined || !isDevHost(hostname);
 	const nowMs = now.getTime();
 	const stillValid =
 		badge.licenseExpiresAt === null ||

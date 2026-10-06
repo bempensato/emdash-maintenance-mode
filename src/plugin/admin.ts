@@ -6,7 +6,9 @@ import { PACKAGE_VERSION, PLUGIN_SLUG, SETTING_KEYS } from "../shared/keys";
 import { BYPASS_ROLES, MODES, type BypassMinRole, type Mode, type PageRef, type RuntimeState } from "../shared/state";
 import { guestBlocks, handleGuestAction, handleGuestForm } from "./guest-admin";
 import { adminLocale, adminStrings, type AdminStrings } from "./i18n";
-import { ensureRuntime, updateRuntime } from "./store";
+import { siteHostname, validateIfStale } from "./license";
+import { handleLicenseAction, handleLicenseForm, licenseBlocks } from "./license-admin";
+import { ensureRuntime, readRuntime, updateRuntime } from "./store";
 
 /**
  * The plugin's admin page (Block Kit, private `admin` route).
@@ -240,6 +242,7 @@ async function buildPage(
 	state: RuntimeState,
 	companion: CompanionInfo | null,
 	baseUrl: string | null,
+	host: string | null,
 ): Promise<Block[]> {
 	const blocks: Block[] = [{ type: "header", text: t.title }];
 
@@ -324,6 +327,9 @@ async function buildPage(
 	// 4. Guest access
 	blocks.push({ type: "divider" }, ...(await guestBlocks(ctx, t, state, baseUrl)));
 
+	// 5. License
+	blocks.push({ type: "divider" }, ...(await licenseBlocks(ctx, t, state, host)));
+
 	// 6. Setup check
 	blocks.push({ type: "divider" }, ...setupBlocks(ctx, t, companion));
 	return blocks;
@@ -371,6 +377,12 @@ export async function handleAdmin(
 	const parsed = interactionSchema.safeParse(routeCtx.input);
 	const interaction = parsed.success ? parsed.data : null;
 	if (!parsed.success) toast = { type: "error", message: t.invalidInput };
+	const host = siteHostname(ctx, routeCtx.request?.url);
+
+	if (interaction?.type === "page_load") {
+		await validateIfStale(ctx, host);
+		state = (await readRuntime(ctx)) ?? state;
+	}
 
 	if (interaction?.type === "block_action") {
 		if (interaction.action_id === "enable" || interaction.action_id === "disable") {
@@ -380,6 +392,10 @@ export async function handleAdmin(
 		} else {
 			const result = await handleGuestAction(ctx, t, interaction.action_id);
 			if (result) ({ state, toast } = result);
+			else {
+				toast = (await handleLicenseAction(ctx, t, interaction.action_id, host)) ?? undefined;
+				state = (await readRuntime(ctx)) ?? state;
+			}
 		}
 	} else if (interaction?.type === "form_submit") {
 		if (interaction.action_id === "save_settings") {
@@ -387,11 +403,15 @@ export async function handleAdmin(
 		} else {
 			const result = await handleGuestForm(ctx, t, interaction.action_id, interaction.values, state);
 			if (result) ({ state, toast } = result);
+			else {
+				toast = (await handleLicenseForm(ctx, t, interaction.action_id, interaction.values, host)) ?? undefined;
+				state = (await readRuntime(ctx)) ?? state;
+			}
 		}
 	}
 
 	const companion = parseCompanion(await ctx.settings.get(SETTING_KEYS.companion));
 	const baseUrl = siteBaseUrl(ctx.site.url, routeCtx.request?.url);
-	const blocks = await buildPage(ctx, t, state, companion, baseUrl);
+	const blocks = await buildPage(ctx, t, state, companion, baseUrl, host);
 	return toast ? { blocks, toast } : { blocks };
 }

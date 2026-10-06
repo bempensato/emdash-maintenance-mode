@@ -16,14 +16,21 @@ export interface Variant {
 	term: PlanTerm;
 }
 
-export const LEMON_SQUEEZY = {
-	storeId: null as number | null,
-	productId: null as number | null,
-	variants: [] as Variant[],
+export interface ProductConfig {
+	storeId: number | null;
+	productId: number | null;
+	variants: readonly Variant[];
 	/** Store page where the key is bought. */
-	buyUrl: "https://github.com/bempensato/emdash-maintenance-mode#free-vs-pro",
-} as const;
+	buyUrl: string;
+}
 
-export function findVariant(variantId: unknown): Variant | undefined {
-	return LEMON_SQUEEZY.variants.find((v) => v.id === variantId);
+export const LEMON_SQUEEZY: ProductConfig = {
+	storeId: null,
+	productId: null,
+	variants: [],
+	buyUrl: "https://github.com/bempensato/emdash-maintenance-mode#free-vs-pro",
+};
+
+export function findVariant(variantId: unknown, product: ProductConfig = LEMON_SQUEEZY): Variant | undefined {
+	return product.variants.find((v) => v.id === variantId);
 }

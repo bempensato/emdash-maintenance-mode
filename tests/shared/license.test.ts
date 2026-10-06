@@ -38,6 +38,16 @@ describe("badge rule", () => {
 	});
 });
 
+describe("badge hidden for local development", () => {
+	const dev = { hidden: true, licenseExpiresAt: null, graceUntil: null, devOnly: true };
+	it("stays hidden only on local hosts", () => {
+		expect(shouldShowBadge(dev, now, "localhost")).toBe(false);
+		expect(shouldShowBadge(dev, now, "127.0.0.1")).toBe(false);
+		expect(shouldShowBadge(dev, now, "example.com")).toBe(true);
+		expect(shouldShowBadge(dev, now)).toBe(true);
+	});
+});
+
 describe("license helpers", () => {
 	it("exempts only local hosts", () => {
 		for (const h of ["localhost", "127.0.0.1", "[::1]", "LOCALHOST"]) expect(isDevHost(h)).toBe(true);

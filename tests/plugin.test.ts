@@ -272,3 +272,82 @@ describe("guest access admin", () => {
 		expect((await runtime(h)).guest.cookieVersion).toBe(before + 1);
 	});
 });
+
+describe("license (through the sandbox)", () => {
+	it("stores the license key encrypted", async () => {
+		// EmDash reads the encryption key from process.env (nodejs_compat).
+		const env = (globalThis as unknown as { process: { env: Record<string, string | undefined> } }).process.env;
+		const { bytesToBase64Url, randomBytes } = await import("../src/shared/crypto");
+		env.EMDASH_ENCRYPTION_KEY = `emdash_enc_v1_${bytesToBase64Url(randomBytes(32))}`;
+		const h = await setup();
+		const update = await h.actions.plugin.updateSettings({ licenseKey: "SECRET-KEY-123" });
+		expect(update).toMatchObject({ success: true });
+		const raw = await h.inspect.settings.raw("licenseKey");
+		expect(raw).toBeTruthy();
+		expect(JSON.stringify(raw)).not.toContain("SECRET-KEY-123");
+	});
+
+	it("shows the free status and makes no request without a key", async () => {
+		const h = await setup();
+		const json = texts((await h.admin.loadPage(PAGE)).blocks);
+		expect(json).toContain("Free version");
+		expect(json).toContain('"action_id":"license_activate"');
+		expect(json).not.toContain("badge_hide");
+		expect(h.http.requests()).toHaveLength(0);
+	});
+
+	it("activates only against api.lemonsqueezy.com and rejects keys of other products", async () => {
+		const h = await setup();
+		await h.http.respond(
+			"https://api.lemonsqueezy.com/v1/licenses/activate",
+			new Response(
+				JSON.stringify({
+					activated: true,
+					error: null,
+					license_key: { status: "active", expires_at: null, activation_limit: 1, activation_usage: 1 },
+					instance: { id: "inst-1", name: "example.com" },
+					meta: { store_id: 1, product_id: 2, variant_id: 3 },
+				}),
+				{ headers: { "content-type": "application/json" } },
+			),
+		);
+		await h.http.respond(
+			"https://api.lemonsqueezy.com/v1/licenses/deactivate",
+			new Response(JSON.stringify({ deactivated: true, error: null }), { headers: { "content-type": "application/json" } }),
+		);
+		const res = await h.admin.submit(PAGE, "license_activate", { license_key: "SOME-KEY" });
+		expect(res.toast?.type).toBe("error");
+		expect(res.toast?.message).toContain("not for this plugin");
+		const requests = h.http.requests();
+		expect(requests.map((r) => r.url)).toEqual([
+			"https://api.lemonsqueezy.com/v1/licenses/activate",
+			"https://api.lemonsqueezy.com/v1/licenses/deactivate",
+		]);
+		const body = new URLSearchParams(new TextDecoder().decode(requests[0]!.body));
+		expect(body.get("license_key")).toBe("SOME-KEY");
+		expect(body.get("instance_name")).toBe("example.com");
+		expect((await runtime(h)).badge.hidden).toBe(false);
+		expect(await h.inspect.setting("license")).toBeNull();
+	});
+
+	it("reports an unreachable Lemon Squeezy without changing anything", async () => {
+		const h = await setup();
+		await h.http.respond("https://api.lemonsqueezy.com/v1/licenses/activate", new Response("down", { status: 503 }));
+		const res = await h.admin.submit(PAGE, "license_activate", { license_key: "SOME-KEY" });
+		expect(res.toast).toEqual({ type: "error", message: "Lemon Squeezy could not be reached. Try again in a few minutes." });
+		expect((await runtime(h)).badge.hidden).toBe(false);
+	});
+
+	it("refuses to hide the badge without a license", async () => {
+		const h = await setup();
+		const res = await h.admin.act(PAGE, "badge_hide");
+		expect(res.toast?.type).toBe("error");
+		expect((await runtime(h)).badge.hidden).toBe(false);
+	});
+
+	it("schedules the daily license check", async () => {
+		const h = await setup();
+		const tasks = await h.inspect.scheduledTasks();
+		expect(JSON.stringify(tasks)).toContain("license-validate");
+	});
+});

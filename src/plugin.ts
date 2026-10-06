@@ -2,6 +2,7 @@ import type { SandboxedPlugin } from "emdash/plugin";
 
 import type { RuntimeState } from "./shared/state";
 import { handleAdmin } from "./plugin/admin";
+import { siteHostname, validate } from "./plugin/license";
 import { ensureRuntime, readRuntime } from "./plugin/store";
 
 /**
@@ -15,6 +16,9 @@ import { ensureRuntime, readRuntime } from "./plugin/store";
 
 /** `page:metadata` runs on every public page view: keep the state for a few seconds. */
 const METADATA_CACHE_MS = 10_000;
+
+/** Daily license validation (cron triggers run only in production on Cloudflare). */
+const LICENSE_CRON = "license-validate";
 let metadataCache: { state: RuntimeState | null; expiresAt: number } | undefined;
 
 const plugin: SandboxedPlugin = {
@@ -25,6 +29,20 @@ const plugin: SandboxedPlugin = {
 
 		"plugin:activate": async (_event, ctx) => {
 			await ensureRuntime(ctx);
+			try {
+				await ctx.cron?.schedule(LICENSE_CRON, { schedule: "17 3 * * *" });
+			} catch (error) {
+				ctx.log.warn("Could not schedule the daily license check", { error: String(error) });
+			}
+		},
+
+		cron: async (event, ctx) => {
+			if (event.name !== LICENSE_CRON) return;
+			try {
+				await validate(ctx, siteHostname(ctx));
+			} catch (error) {
+				ctx.log.warn("Daily license check failed", { error: String(error) });
+			}
 		},
 
 		"page:metadata": async (_event, ctx) => {

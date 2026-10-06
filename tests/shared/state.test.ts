@@ -60,7 +60,7 @@ describe("runtime state", () => {
 				cookieVersion: 1,
 				cookieMaxAgeDays: 30,
 			},
-			badge: { hidden: false, licenseExpiresAt: null, graceUntil: null },
+			badge: { hidden: false, licenseExpiresAt: null, graceUntil: null, devOnly: false },
 			retryAfterSeconds: 3600,
 			updatedAt: "1970-01-01T00:00:00.000Z",
 		});
@@ -80,7 +80,7 @@ describe("runtime state", () => {
 				cookieVersion: 7,
 				cookieMaxAgeDays: 90,
 			},
-			badge: { hidden: true, licenseExpiresAt: "2027-01-01T00:00:00Z", graceUntil: null },
+			badge: { hidden: true, licenseExpiresAt: "2027-01-01T00:00:00Z", graceUntil: null, devOnly: false },
 			retryAfterSeconds: 120,
 		};
 		expect(parseRuntimeState(raw)).toEqual(raw);

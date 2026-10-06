@@ -69,7 +69,7 @@ const content =
 	entry && state?.page
 		? { collection: state.page.collection, id: String(data.id ?? entry.id), slug: state.page.slug }
 		: undefined;
-const showBadge = state ? shouldShowBadge(state.badge) : true;
+const showBadge = state ? shouldShowBadge(state.badge, new Date(), Astro.url.hostname) : true;
 
 // The visitor's own URL: the middleware rewrite keeps it in locals.
 let requestedUrl = Astro.url;

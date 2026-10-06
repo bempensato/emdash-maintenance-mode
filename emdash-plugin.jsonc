@@ -25,6 +25,14 @@
 	"storage": {},
 
 	"admin": {
-		"pages": [{ "path": "/settings", "label": "Maintenance Mode", "icon": "barricade" }]
+		"pages": [{ "path": "/settings", "label": "Maintenance Mode", "icon": "barricade" }],
+		// Encrypted with EMDASH_ENCRYPTION_KEY; never sent back to the browser.
+		"settingsSchema": {
+			"licenseKey": {
+				"type": "secret",
+				"label": "License key",
+				"description": "Pro license from Lemon Squeezy. Activate it from the Maintenance Mode page."
+			}
+		}
 	}
 }

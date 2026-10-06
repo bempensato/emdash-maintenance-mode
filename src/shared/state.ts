@@ -32,6 +32,11 @@ export interface BadgeState {
 	hidden: boolean;
 	licenseExpiresAt: string | null;
 	graceUntil: string | null;
+	/**
+	 * Hidden without a license on a local development host: honoured only on
+	 * such hosts, so a database copied to production shows the badge again.
+	 */
+	devOnly?: boolean;
 }
 
 export interface RuntimeState {
@@ -67,7 +72,7 @@ export function createDefaultRuntimeState(
 			cookieVersion: 1,
 			cookieMaxAgeDays: DEFAULTS.cookieMaxAgeDays,
 		},
-		badge: { hidden: false, licenseExpiresAt: null, graceUntil: null },
+		badge: { hidden: false, licenseExpiresAt: null, graceUntil: null, devOnly: false },
 		retryAfterSeconds: DEFAULTS.retryAfterSeconds,
 		updatedAt: now.toISOString(),
 	};
@@ -139,6 +144,7 @@ function parseBadge(value: unknown): BadgeState {
 		hidden: b.hidden === true,
 		licenseExpiresAt: isoDateOrNull(b.licenseExpiresAt),
 		graceUntil: isoDateOrNull(b.graceUntil),
+		devOnly: b.devOnly === true,
 	};
 }
 
