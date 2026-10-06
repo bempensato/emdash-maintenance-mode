@@ -50,8 +50,9 @@
 		"test": "emdash-plugin validate && vitest run",
 		"bundle": "emdash-plugin bundle",
 		"login": "emdash-plugin login",
-		"publish": "emdash-plugin publish",
-		"release:setup": "emdash-plugin release setup"
+		"registry:publish": "emdash-plugin publish",
+		"release:setup": "emdash-plugin release setup",
+		"prepack": "emdash-plugin build"
 	},
 	"peerDependencies": {
 		"astro": ">=7.0.0",

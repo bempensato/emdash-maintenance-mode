@@ -71,6 +71,18 @@ export default defineConfig({
 
 Then deploy and open **Plugins → Maintenance Mode** in the admin. The **Setup check** at the bottom of the page confirms that the companion is running (it reports in the first time a logged-in user opens the site).
 
+Before it is on npm, you can install a specific commit from GitHub. pnpm builds it on install once you allow it:
+
+```yaml
+# pnpm-workspace.yaml
+onlyBuiltDependencies:
+  - emdash-maintenance-mode
+```
+
+```sh
+pnpm add github:bempensato/emdash-maintenance-mode#<commit>
+```
+
 ### Companion options
 
 ```js
@@ -138,6 +150,11 @@ pnpm run build
 | `src/shared/` | Shared by both: the `runtime` setting contract, ids, crypto, badge rule |
 | `bin/` | `npx emdash-maintenance-mode init` |
 | `docs/IMPLEMENTATION_PLAN.md` | Design decisions and architecture |
+
+### Releasing
+
+- **npm**: bump `version` in `package.json` (and `PACKAGE_VERSION` in `src/shared/keys.ts`, a test checks they match), update `CHANGELOG.md`, then push a tag `vX.Y.Z`. The `Publish to npm` workflow checks, builds and publishes with provenance (secret `NPM_TOKEN`).
+- **EmDash registry**: run `pnpm run release:setup` once (it links the publisher profile and writes the release workflow), or publish from this computer with `pnpm run registry:publish`.
 
 To try the companion in a local site, install the package from a tarball (`pnpm pack`) rather than with `link:`: Astro doesn't compile the styles of `.astro` files linked from outside the project.
 
