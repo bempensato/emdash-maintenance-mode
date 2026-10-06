@@ -15,3 +15,5 @@ One package, two parts sharing `src/shared/`:
 License rules: activation is bound to the site's domain (store instance id + host, re-check on validate), verify store/product/variant in Lemon Squeezy responses, keep the key in a `secret` setting, exempt only `localhost`, 7-day grace period when Lemon Squeezy is unreachable, no obfuscation.
 
 Rules: fail open (never block a site because of an error or an unreachable license server), no telemetry, no runtime dependencies in the companion, no network calls outside `allowedHosts`.
+
+The full implementation brief (decisions, verified APIs, architecture, milestones) is in `docs/IMPLEMENTATION_PLAN.md`. Read it before starting feature work.
