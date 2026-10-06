@@ -1,6 +1,6 @@
 {
 	"name": "emdash-maintenance-mode",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"description": "Maintenance mode & coming soon page for EmDash CMS, with live editing, editor bypass and guest access by secret link or password.",
 	"license": "SEE LICENSE IN LICENSE.md",
 	"author": "Federico Bempensato",
@@ -56,11 +56,13 @@
 		"emdash": ">=1.1.0"
 	},
 	"devDependencies": {
+		"@emdash-cms/blocks": "1.1.0",
 		"@emdash-cms/plugin-cli": "0.13.2",
 		"@emdash-cms/plugin-test": "^0.2.7",
 		"astro": "^7.3.2",
 		"emdash": "^1.1.0",
 		"typescript": "^5.9.0",
-		"vitest": "^4.1.0"
+		"vitest": "^4.1.0",
+		"zod": "^4.6.5"
 	}
 }

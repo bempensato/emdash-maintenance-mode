@@ -2,7 +2,7 @@ import { PACKAGE_VERSION, SETTING_KEYS, settingOptionName } from "../shared/keys
 import type { LoadedState } from "./state";
 
 /**
- * Records `{ version, seenAt }` in the plugin's `companion` setting, so the
+ * Records `{ version, seenAt, path, duplicateInstall }` in the plugin's `companion` setting, so the
  * admin page can tell the companion is installed and up to date.
  *
  * EmDash exposes the database (`locals.emdash.db`) only on requests that run
@@ -11,6 +11,8 @@ import type { LoadedState } from "./state";
  */
 
 export interface CompanionReporterDeps {
+	/** Public path of the maintenance page, shown in the admin. */
+	pagePath: string;
 	loadState: () => Promise<LoadedState | null>;
 	/** Writes one options row with the given database handle. */
 	write: (db: unknown, name: string, value: unknown) => Promise<void>;
@@ -38,6 +40,8 @@ export function createCompanionReporter(deps: CompanionReporterDeps) {
 				await deps.write(db, settingOptionName(loaded.pluginId, SETTING_KEYS.companion), {
 					version: PACKAGE_VERSION,
 					seenAt: (deps.now?.() ?? new Date()).toISOString(),
+					path: deps.pagePath,
+					duplicateInstall: loaded.duplicate,
 				});
 				state = "done";
 			} catch (error) {

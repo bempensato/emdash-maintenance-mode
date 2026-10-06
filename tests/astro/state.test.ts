@@ -16,20 +16,20 @@ function reader(values: Record<string, unknown>) {
 describe("companion state", () => {
 	it("reads the npm install", async () => {
 		const loaded = await readRuntimeState(reader({ "maintenance-mode/runtime": older }));
-		expect(loaded).toEqual({ pluginId: "maintenance-mode", state: older });
+		expect(loaded).toEqual({ pluginId: "maintenance-mode", state: older, duplicate: false });
 	});
 
 	it("reads the registry install", async () => {
 		const id = await registryPluginId();
 		const loaded = await readRuntimeState(reader({ [`${id}/runtime`]: newer }));
-		expect(loaded).toEqual({ pluginId: id, state: newer });
+		expect(loaded).toEqual({ pluginId: id, state: newer, duplicate: false });
 	});
 
 	it("prefers the newer state when both ids have one", async () => {
 		const id = await registryPluginId();
-		expect(
-			(await readRuntimeState(reader({ "maintenance-mode/runtime": older, [`${id}/runtime`]: newer })))?.pluginId,
-		).toBe(id);
+		const both = await readRuntimeState(reader({ "maintenance-mode/runtime": older, [`${id}/runtime`]: newer }));
+		expect(both?.pluginId).toBe(id);
+		expect(both?.duplicate).toBe(true);
 		expect(
 			(await readRuntimeState(reader({ "maintenance-mode/runtime": newer, [`${id}/runtime`]: older })))?.pluginId,
 		).toBe("maintenance-mode");

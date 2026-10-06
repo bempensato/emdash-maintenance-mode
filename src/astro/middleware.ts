@@ -17,6 +17,7 @@ type Db = ConstructorParameters<typeof OptionsRepository>[0];
 const loadState = () => loadRuntimeState(getPluginSetting);
 
 const reportCompanion = createCompanionReporter({
+	pagePath: options.path,
 	loadState,
 	write: (db, name, value) => new OptionsRepository(db as Db).set(name, value),
 	defer: after,

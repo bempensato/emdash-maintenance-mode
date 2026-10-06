@@ -1,20 +1,219 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { createPluginTestHost, type PluginTestHost } from "@emdash-cms/plugin-test";
+import {
+	createPluginRuntimeTestHost,
+	createPluginTestHost,
+	type PluginRuntimeTestHost,
+	type PluginTestHost,
+} from "@emdash-cms/plugin-test";
 
-let host: PluginTestHost | undefined;
+import { encodePage } from "../src/plugin/admin";
+import { PACKAGE_VERSION } from "../src/shared/keys";
+import { parseRuntimeState, type RuntimeState } from "../src/shared/state";
+
+let host: PluginRuntimeTestHost | undefined;
+let transportHost: PluginTestHost | undefined;
 
 afterEach(async () => {
 	await host?.dispose();
+	await transportHost?.dispose();
 	host = undefined;
+	transportHost = undefined;
 });
 
+const PAGE = "/settings";
+
+async function setup(): Promise<PluginRuntimeTestHost> {
+	host = await createPluginRuntimeTestHost({ site: { url: "https://example.com", name: "Example" } });
+	await host.actions.plugin.activate();
+	return host;
+}
+
+async function runtime(h: PluginRuntimeTestHost): Promise<RuntimeState> {
+	const state = parseRuntimeState(await h.inspect.setting("runtime"));
+	if (!state) throw new Error("runtime setting missing or invalid");
+	return state;
+}
+
+function texts(blocks: unknown): string {
+	return JSON.stringify(blocks);
+}
+
+async function seedPages(h: PluginRuntimeTestHost) {
+	await h.fixtures.collection({
+		slug: "pages",
+		label: "Pages",
+		fields: [{ slug: "title", label: "Title", type: "string" }],
+	});
+	await h.fixtures.content("pages", { slug: "coming-soon", status: "published", data: { title: "Coming soon" } });
+	await h.fixtures.content("pages", { slug: "draft-page", status: "draft", data: { title: "Draft" } });
+}
+
 describe("maintenance-mode plugin", () => {
-	it("loads through the sandbox host with the declared trust contract", async () => {
-		host = await createPluginTestHost();
-		expect(host.manifest.capabilities).toEqual(
-			expect.arrayContaining(["content:read", "network:request"]),
+	it("declares the trust contract", async () => {
+		transportHost = await createPluginTestHost();
+		expect(transportHost.manifest.capabilities).toEqual(
+			expect.arrayContaining(["content:read", "schema:read", "network:request"]),
 		);
-		expect(host.manifest.allowedHosts).toEqual(["api.lemonsqueezy.com"]);
+		expect(transportHost.manifest.allowedHosts).toEqual(["api.lemonsqueezy.com"]);
+	});
+
+	it("writes a disabled default state on activation", async () => {
+		const h = await setup();
+		const state = await runtime(h);
+		expect(state).toMatchObject({
+			enabled: false,
+			mode: "coming-soon",
+			page: null,
+			bypassMinRole: 40,
+			guest: { linkTokenHash: null, password: null, cookieVersion: 1 },
+			badge: { hidden: false },
+		});
+		expect(state.guest.cookieSecretB64.length).toBeGreaterThanOrEqual(43);
+	});
+
+	it("keeps the existing state when activated again", async () => {
+		const h = await setup();
+		const first = await runtime(h);
+		await h.actions.plugin.deactivate();
+		await h.actions.plugin.activate();
+		expect((await runtime(h)).guest.cookieSecretB64).toBe(first.guest.cookieSecretB64);
+	});
+
+	it("renders the admin page", async () => {
+		const h = await setup();
+		const page = await h.admin.loadPage(PAGE);
+		const json = texts(page.blocks);
+		expect(json).toContain("Maintenance Mode & Coming Soon");
+		expect(json).toContain("Your site is public");
+		expect(json).toContain('"action_id":"enable"');
+		expect(json).toContain('"action_id":"save_settings"');
+		expect(json).toContain("Step 2: install the companion");
+		expect(json).toContain("maintenanceModePlugin");
+	});
+
+	// EmDash 1.1 has no Italian admin locale yet, so the host never attests
+	// `it`; the transport host lets the test set the UI context directly.
+	it("renders in Italian for an Italian admin", async () => {
+		transportHost = await createPluginTestHost();
+		const page = await transportHost.invokeRoute(
+			"admin",
+			{ type: "page_load", page: PAGE },
+			{ ui: { locale: "it-IT", direction: "ltr", surface: "admin-page" } },
+		);
+		expect(texts(page)).toContain("Il sito è pubblico");
+	});
+
+	it("turns maintenance mode on and off", async () => {
+		const h = await setup();
+		const on = await h.admin.act(PAGE, "enable");
+		expect(on.toast?.type).toBe("success");
+		expect(texts(on.blocks)).toContain("Your site is hidden");
+		expect((await runtime(h)).enabled).toBe(true);
+
+		await h.admin.act(PAGE, "disable");
+		expect((await runtime(h)).enabled).toBe(false);
+	});
+
+	it("bumps updatedAt on every change", async () => {
+		const h = await setup();
+		const before = await runtime(h);
+		await new Promise((r) => setTimeout(r, 5));
+		await h.admin.act(PAGE, "enable");
+		expect(Date.parse((await runtime(h)).updatedAt)).toBeGreaterThan(Date.parse(before.updatedAt));
+	});
+
+	it("lists published entries and saves the settings", async () => {
+		const h = await setup();
+		await seedPages(h);
+		const page = await h.admin.loadPage(PAGE);
+		const json = texts(page.blocks);
+		expect(json).toContain("Pages — Coming soon");
+		expect(json).not.toContain("Draft");
+
+		const saved = await h.admin.submit(PAGE, "save_settings", {
+			mode: "maintenance",
+			page: encodePage({ collection: "pages", slug: "coming-soon" }),
+			bypass: "50",
+		});
+		expect(saved.toast).toEqual({ type: "success", message: "Settings saved" });
+		expect(await runtime(h)).toMatchObject({
+			mode: "maintenance",
+			page: { collection: "pages", slug: "coming-soon" },
+			bypassMinRole: 50,
+		});
+	});
+
+	it("clears the page with the built-in message option", async () => {
+		const h = await setup();
+		await seedPages(h);
+		await h.admin.submit(PAGE, "save_settings", {
+			mode: "coming-soon",
+			page: encodePage({ collection: "pages", slug: "coming-soon" }),
+			bypass: "40",
+		});
+		await h.admin.submit(PAGE, "save_settings", { mode: "coming-soon", page: "", bypass: "20" });
+		expect(await runtime(h)).toMatchObject({ page: null, bypassMinRole: 20 });
+	});
+
+	it("rejects unknown pages and invalid values", async () => {
+		const h = await setup();
+		await seedPages(h);
+		const before = await runtime(h);
+		for (const values of [
+			{ mode: "coming-soon", page: encodePage({ collection: "pages", slug: "draft-page" }), bypass: "40" },
+			{ mode: "coming-soon", page: encodePage({ collection: "secrets", slug: "x" }), bypass: "40" },
+			{ mode: "coming-soon", page: "not json", bypass: "40" },
+			{ mode: "party", page: "", bypass: "40" },
+			{ mode: "coming-soon", page: "", bypass: "10" },
+		]) {
+			const res = await h.admin.submit(PAGE, "save_settings", values);
+			expect(res.toast?.type, JSON.stringify(values)).toBe("error");
+		}
+		expect((await runtime(h)).updatedAt).toBe(before.updatedAt);
+	});
+
+	it("shows the companion status", async () => {
+		const h = await setup();
+		await h.fixtures.plugin.setting("companion", {
+			version: PACKAGE_VERSION,
+			seenAt: new Date().toISOString(),
+			path: "/maintenance",
+			duplicateInstall: false,
+		});
+		let json = texts((await h.admin.loadPage(PAGE)).blocks);
+		expect(json).toContain(`Companion installed (version ${PACKAGE_VERSION})`);
+		expect(json).toContain("https://example.com/maintenance");
+		expect(json).not.toContain("Step 2");
+
+		await h.fixtures.plugin.setting("companion", {
+			version: "0.0.1",
+			seenAt: new Date().toISOString(),
+			path: "/maintenance",
+			duplicateInstall: true,
+		});
+		json = texts((await h.admin.loadPage(PAGE)).blocks);
+		expect(json).toContain("Update the companion");
+		expect(json).toContain("Installed twice");
+	});
+
+	it("adds noindex only while the site is hidden", async () => {
+		const h = await setup();
+		const event = {
+			page: {
+				url: "https://example.com/",
+				path: "/",
+				locale: null,
+				kind: "custom",
+				pageType: "website",
+				title: "Home",
+				description: null,
+				canonical: null,
+				image: null,
+			},
+		};
+		expect(await h.transport.invokeHook("page:metadata", event)).toBeFalsy();
+		await h.admin.act(PAGE, "enable");
+		expect(JSON.stringify(await h.transport.invokeHook("page:metadata", event))).toContain("noindex");
 	});
 });

@@ -7,7 +7,7 @@ import { createDefaultRuntimeState, type RuntimeState } from "../../src/shared/s
 const options = { path: "/maintenance", accessPath: "/maintenance-access" };
 
 function stateWith(patch: Partial<RuntimeState> = {}): LoadedState {
-	return { pluginId: "maintenance-mode", state: { ...createDefaultRuntimeState("c2VjcmV0"), enabled: true, ...patch } };
+	return { pluginId: "maintenance-mode", duplicate: false, state: { ...createDefaultRuntimeState("c2VjcmV0"), enabled: true, ...patch } };
 }
 
 function ctx(path: string, init: { method?: string; role?: number } = {}): GateContext & { cacheSet: ReturnType<typeof vi.fn> } {

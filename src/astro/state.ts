@@ -18,6 +18,8 @@ export type SettingReader = (pluginId: string, key: string) => Promise<unknown>;
 export interface LoadedState {
 	state: RuntimeState;
 	pluginId: string;
+	/** Both the npm and the registry install have state (installed twice). */
+	duplicate: boolean;
 }
 
 interface CacheEntry {
@@ -32,10 +34,14 @@ export async function readRuntimeState(read: SettingReader): Promise<LoadedState
 	const ids = await candidatePluginIds();
 	const raws = await Promise.all(ids.map((id) => read(id, SETTING_KEYS.runtime)));
 	let best: LoadedState | null = null;
-	ids.forEach((pluginId, i) => {
+	let found = 0;
+	for (const [i, pluginId] of ids.entries()) {
 		const state = parseRuntimeState(raws[i]);
-		if (state && newerState(best?.state ?? null, state) === state) best = { state, pluginId };
-	});
+		if (!state) continue;
+		found++;
+		if (newerState(best?.state ?? null, state) === state) best = { state, pluginId, duplicate: false };
+	}
+	if (best) best.duplicate = found > 1;
 	return best;
 }
 

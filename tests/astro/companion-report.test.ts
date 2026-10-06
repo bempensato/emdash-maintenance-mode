@@ -5,12 +5,13 @@ import type { LoadedState } from "../../src/astro/state";
 import { PACKAGE_VERSION } from "../../src/shared/keys";
 import { createDefaultRuntimeState } from "../../src/shared/state";
 
-const loaded: LoadedState = { pluginId: "r_abc", state: createDefaultRuntimeState("x") };
+const loaded: LoadedState = { pluginId: "r_abc", state: createDefaultRuntimeState("x"), duplicate: true };
 const withDb = { emdash: { db: { fake: true } } };
 
 function setup(loadState: () => Promise<LoadedState | null>, write = vi.fn(async () => {})) {
 	const tasks: Array<() => Promise<void>> = [];
 	const report = createCompanionReporter({
+		pagePath: "/maintenance",
 		loadState,
 		write,
 		defer: (task) => tasks.push(task),
@@ -42,6 +43,8 @@ describe("companion report", () => {
 		expect(write).toHaveBeenCalledWith(withDb.emdash.db, "plugin:r_abc:settings:companion", {
 			version: PACKAGE_VERSION,
 			seenAt: "2026-01-01T00:00:00.000Z",
+			path: "/maintenance",
+			duplicateInstall: true,
 		});
 	});
 

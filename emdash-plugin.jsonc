@@ -18,8 +18,13 @@
 	// installed users have consented to the old contract.
 	//
 	// - content:read      list the entries an administrator can pick as the maintenance page
+	// - schema:read       list the collections those entries come from
 	// - network:request   license activation/validation, limited to allowedHosts
-	"capabilities": ["content:read", "network:request"],
+	"capabilities": ["content:read", "schema:read", "network:request"],
 	"allowedHosts": ["api.lemonsqueezy.com"],
-	"storage": {}
+	"storage": {},
+
+	"admin": {
+		"pages": [{ "path": "/settings", "label": "Maintenance Mode", "icon": "barricade" }]
+	}
 }

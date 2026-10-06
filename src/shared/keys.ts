@@ -14,7 +14,7 @@ export const PUBLISHER_DID = "did:plc:f3in7i6onwmsmxykb7emfyru";
  * Package version. Kept equal to `package.json` `version` (a test checks it);
  * the companion reports it so the admin page can detect an outdated install.
  */
-export const PACKAGE_VERSION = "0.1.0";
+export const PACKAGE_VERSION = "0.2.0";
 
 /** Public URL of the product, linked from the badge. */
 export const PRODUCT_URL = "https://github.com/bempensato/emdash-maintenance-mode";
