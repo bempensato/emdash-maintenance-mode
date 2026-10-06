@@ -1,0 +1,144 @@
+---
+/**
+ * The maintenance page. Visitors reach it through the middleware rewrite;
+ * logged-in users can open it directly to edit the chosen entry with live
+ * editing, even while maintenance mode is off.
+ */
+import { getEmDashEntry, getPluginSetting } from "emdash";
+import { Image, PortableText } from "emdash/ui";
+import { Layout } from "virtual:emdash-maintenance-mode/config";
+
+import { PRODUCT_URL } from "../shared/keys";
+import { shouldShowBadge } from "../shared/license";
+import type { RuntimeState } from "../shared/state";
+import { findImageField, findPortableTextField, findSubtitleField, stringField } from "./entry";
+import { maintenanceHeaders } from "./gate";
+import { pickLocale, strings } from "./i18n";
+import { loadRuntimeState } from "./state";
+
+let state: RuntimeState | null = null;
+try {
+	state = (await loadRuntimeState(getPluginSetting))?.state ?? null;
+} catch (error) {
+	console.error("[maintenance-mode] could not read the plugin state:", error);
+}
+
+const user = Astro.locals.user;
+
+// Nothing to show anonymous visitors while the site is public.
+if (!user && !state?.enabled) {
+	return new Response("Not found", { status: 404, headers: { "Cache-Control": "no-store" } });
+}
+
+const isVisitor = !user || (state !== null && user.role < state.bypassMinRole);
+const headers = maintenanceHeaders(new Headers(), state?.retryAfterSeconds ?? 3600);
+for (const [name, value] of headers) {
+	if (isVisitor || name !== "retry-after") Astro.response.headers.set(name, value);
+}
+if (isVisitor && state?.enabled) {
+	Astro.response.status = 503;
+	Astro.response.statusText = "Service Unavailable";
+}
+try {
+	if (Astro.cache?.enabled) Astro.cache.set(false);
+} catch {
+	// No route cache configured.
+}
+
+const mode = state?.mode ?? "coming-soon";
+const locale = pickLocale(Astro.currentLocale, Astro.request.headers.get("accept-language"));
+const t = strings(locale);
+
+let entry: Awaited<ReturnType<typeof getEmDashEntry>>["entry"] = null;
+if (state?.page) {
+	try {
+		entry = (await getEmDashEntry(state.page.collection, state.page.slug)).entry ?? null;
+	} catch (error) {
+		console.error("[maintenance-mode] could not load the maintenance entry:", error);
+	}
+}
+
+const data = (entry?.data ?? {}) as Record<string, unknown>;
+const title = (entry && stringField(data, "title")) || t.fallbackTitle[mode];
+const subtitleField = entry ? findSubtitleField(data) : null;
+const imageField = entry ? findImageField(data) : null;
+const contentField = entry ? findPortableTextField(data) : null;
+const edit = entry?.edit as Record<string, Record<string, unknown>> | undefined;
+const content =
+	entry && state?.page
+		? { collection: state.page.collection, id: String(data.id ?? entry.id), slug: state.page.slug }
+		: undefined;
+const showBadge = state ? shouldShowBadge(state.badge) : true;
+---
+
+<Layout title={title} content={content} locale={locale}>
+	<div class="mm-page" data-mode={mode}>
+		{
+			imageField && (
+				<div class="mm-image" {...edit?.[imageField]}>
+					<Image image={data[imageField] as never} />
+				</div>
+			)
+		}
+		<h1 class="mm-title" {...(entry ? edit?.title : {})}>{title}</h1>
+		{subtitleField && <p class="mm-subtitle" {...edit?.[subtitleField]}>{data[subtitleField] as string}</p>}
+		{
+			contentField ? (
+				<div class="mm-content">
+					<PortableText value={data[contentField] as never} />
+				</div>
+			) : (
+				!entry && <p class="mm-content">{t.fallbackText[mode]}</p>
+			)
+		}
+		{
+			showBadge && (
+				<p class="mm-badge">
+					<a href={PRODUCT_URL} rel="noopener">
+						{t.badge}
+					</a>
+				</p>
+			)
+		}
+	</div>
+</Layout>
+
+<style>
+	.mm-page {
+		text-align: center;
+	}
+	.mm-image {
+		margin: 0 auto 1.5rem;
+		max-width: 100%;
+	}
+	.mm-image :global(img) {
+		max-width: 100%;
+		height: auto;
+		border-radius: 0.5rem;
+	}
+	.mm-title {
+		margin: 0 0 0.75rem;
+		font-size: clamp(1.75rem, 5vw, 2.5rem);
+		line-height: 1.2;
+	}
+	.mm-subtitle {
+		margin: 0 0 1.25rem;
+		font-size: 1.15rem;
+		opacity: 0.8;
+	}
+	.mm-content {
+		text-align: left;
+		line-height: 1.6;
+	}
+	p.mm-content {
+		text-align: center;
+	}
+	.mm-badge {
+		margin: 2.5rem 0 0;
+		font-size: 0.8rem;
+		opacity: 0.7;
+	}
+	.mm-badge a {
+		color: inherit;
+	}
+</style>
