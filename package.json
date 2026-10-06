@@ -35,10 +35,12 @@
 	},
 	"files": [
 		"dist",
+		"bin",
 		"src/astro",
 		"src/shared",
 		"emdash-plugin.jsonc",
-		"LICENSE.md"
+		"LICENSE.md",
+		"CHANGELOG.md"
 	],
 	"scripts": {
 		"validate": "emdash-plugin validate",
@@ -64,5 +66,8 @@
 		"typescript": "^5.9.0",
 		"vitest": "^4.1.0",
 		"zod": "^4.6.5"
+	},
+	"bin": {
+		"emdash-maintenance-mode": "./bin/init.mjs"
 	}
 }
