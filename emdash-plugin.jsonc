@@ -2,7 +2,7 @@
 	"$schema": "./node_modules/@emdash-cms/plugin-cli/schemas/emdash-plugin.schema.json",
 
 	"slug": "maintenance-mode",
-	// Atmosphere account @bempensato.bsky.social. Pinned as a DID because handles can change.
+	// Atmosphere account @bempensato.com. Pinned as a DID because handles can change.
 	"publisher": "did:plc:f3in7i6onwmsmxykb7emfyru",
 
 	"name": "Maintenance Mode & Coming Soon",
