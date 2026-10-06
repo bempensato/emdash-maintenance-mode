@@ -18,7 +18,7 @@ So you can decide whether to trust it before installing.
 **It does:**
 
 - read the entries you can choose as the maintenance page (`content:read`);
-- contact **`api.lemonsqueezy.com`** to activate and validate your license key: on activation, then about once a day. That is the only external host it can reach (`allowedHosts`);
+- only if you enter a Pro license key: contact **`api.lemonsqueezy.com`** to activate and validate it, on activation and then about once a day. That is the only external host it can reach (`allowedHosts`). Without a key it makes no network requests;
 - set a cookie (`HttpOnly`, `Secure`, `SameSite=Lax`) only for guests who use the preview link or the password, so they stay signed in;
 - store its own settings in your EmDash database. Guest passwords are stored only as a salted hash.
 
@@ -67,9 +67,23 @@ export default defineConfig({
 
 Then deploy, open **Plugins → Maintenance Mode & Coming Soon** in the admin, enter your license key, choose the page and turn it on.
 
+## Free vs Pro
+
+Every feature is free, on as many sites as you like. The free version shows a small "Powered by" badge at the bottom of the maintenance page. A Pro license lets you hide it.
+
+| Plan | Annual | Lifetime |
+| --- | --- | --- |
+| 1 site | €9 / year | €29 once |
+| 5 sites | €29 / year | €89 once |
+
+- Enter the license key in the plugin page in the admin. A **Hide badge** option appears.
+- **Annual**: if the subscription ends, the badge comes back. Nothing else changes, and your site is never blocked.
+- **Lifetime**: no expiry, updates to all 1.x versions included.
+- A key works on the number of sites in its plan. Use **Deactivate on this site** to move it to another site. Local development (`localhost`) never needs a key.
+
 ## License
 
-Commercial, source-available. You can read and audit the code, but production use requires a license. Development and staging are free. See [LICENSE.md](./LICENSE.md).
+Free to use, source-available, with a paid option to hide the badge. You can read and audit the code; you may not redistribute it or share license keys. See [LICENSE.md](./LICENSE.md).
 
 ## Development
 
