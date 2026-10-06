@@ -9,8 +9,15 @@ const encoder = new TextEncoder();
 export type Bytes = Uint8Array<ArrayBuffer>;
 const decoder = new TextDecoder();
 
-/** PBKDF2 iterations. Cloudflare Workers reject more than 100 000. */
+/** Most PBKDF2 iterations accepted when verifying (Cloudflare Workers reject more). */
 export const PBKDF2_ITERATIONS = 100_000;
+
+/**
+ * Iterations for new password hashes. About 5 ms of CPU, so setting and
+ * checking a password fits the 10 ms CPU budget of Workers Free; the salt is
+ * random per hash and the password endpoint is rate limited.
+ */
+export const PASSWORD_ITERATIONS = 20_000;
 
 // ---------------------------------------------------------------------------
 // Encoding
@@ -126,7 +133,7 @@ async function pbkdf2(password: string, salt: Bytes, iterations: number): Promis
 
 export async function hashPassword(
 	password: string,
-	iterations = PBKDF2_ITERATIONS,
+	iterations = PASSWORD_ITERATIONS,
 ): Promise<PasswordHash> {
 	const salt = randomBytes(16);
 	const hash = await pbkdf2(password, salt, iterations);

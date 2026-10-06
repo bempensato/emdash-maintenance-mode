@@ -7,7 +7,7 @@ import {
 	hashPassword,
 	hmacSha256,
 	hmacVerify,
-	PBKDF2_ITERATIONS,
+	PASSWORD_ITERATIONS,
 	randomBytes,
 	randomToken,
 	sha256Hex,
@@ -78,9 +78,14 @@ describe("passwords", () => {
 		expect(await verifyPassword("", a)).toBe(false);
 	});
 
-	it("uses the Workers-compatible iteration count by default", async () => {
+	it("uses the Workers Free friendly iteration count by default", async () => {
 		const h = await hashPassword("pw");
-		expect(h.iterations).toBe(PBKDF2_ITERATIONS);
+		expect(h.iterations).toBe(PASSWORD_ITERATIONS);
+		expect(await verifyPassword("pw", h)).toBe(true);
+	});
+
+	it("still verifies hashes made with up to 100 000 iterations", async () => {
+		const h = await hashPassword("pw", 100_000);
 		expect(await verifyPassword("pw", h)).toBe(true);
 	});
 

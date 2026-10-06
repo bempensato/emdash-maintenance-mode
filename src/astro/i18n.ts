@@ -8,6 +8,10 @@ interface Strings {
 	fallbackTitle: Record<Mode, string>;
 	fallbackText: Record<Mode, string>;
 	badge: string;
+	passwordPrompt: string;
+	passwordLabel: string;
+	passwordSubmit: string;
+	passwordError: string;
 }
 
 const STRINGS: Record<Locale, Strings> = {
@@ -21,6 +25,10 @@ const STRINGS: Record<Locale, Strings> = {
 			maintenance: "We're doing some maintenance. Please check back in a little while.",
 		},
 		badge: "Powered by Maintenance Mode for EmDash",
+		passwordPrompt: "Have a password? Enter it to see the site.",
+		passwordLabel: "Password",
+		passwordSubmit: "Enter",
+		passwordError: "That didn't work. Check the password and try again in a moment.",
 	},
 	it: {
 		fallbackTitle: {
@@ -32,6 +40,10 @@ const STRINGS: Record<Locale, Strings> = {
 			maintenance: "Stiamo facendo manutenzione. Torna tra poco.",
 		},
 		badge: "Powered by Maintenance Mode for EmDash",
+		passwordPrompt: "Hai una password? Inseriscila per vedere il sito.",
+		passwordLabel: "Password",
+		passwordSubmit: "Entra",
+		passwordError: "Non ha funzionato. Controlla la password e riprova tra poco.",
 	},
 };
 

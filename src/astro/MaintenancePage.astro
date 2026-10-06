@@ -6,13 +6,14 @@
  */
 import { getEmDashEntry, getPluginSetting } from "emdash";
 import { Image, PortableText } from "emdash/ui";
-import { Layout } from "virtual:emdash-maintenance-mode/config";
+import { Layout, options } from "virtual:emdash-maintenance-mode/config";
 
-import { PRODUCT_URL } from "../shared/keys";
+import { PASSWORD_ERROR_PARAM, PRODUCT_URL } from "../shared/keys";
 import { shouldShowBadge } from "../shared/license";
 import type { RuntimeState } from "../shared/state";
 import { findImageField, findPortableTextField, findSubtitleField, stringField } from "./entry";
-import { maintenanceHeaders } from "./gate";
+import { maintenanceHeaders, ORIGINAL_URL_LOCAL } from "./gate";
+import { safeReturnPath } from "./guest";
 import { pickLocale, strings } from "./i18n";
 import { loadRuntimeState } from "./state";
 
@@ -69,6 +70,22 @@ const content =
 		? { collection: state.page.collection, id: String(data.id ?? entry.id), slug: state.page.slug }
 		: undefined;
 const showBadge = state ? shouldShowBadge(state.badge) : true;
+
+// The visitor's own URL: the middleware rewrite keeps it in locals.
+let requestedUrl = Astro.url;
+const original = (Astro.locals as Record<string, unknown>)[ORIGINAL_URL_LOCAL];
+if (typeof original === "string") {
+	try {
+		requestedUrl = new URL(original);
+	} catch {
+		// Keep Astro.url.
+	}
+}
+const showPassword = isVisitor && Boolean(state?.enabled && state.guest.password);
+const returnPath = safeReturnPath(
+	requestedUrl.pathname === options.path ? "/" : requestedUrl.pathname + requestedUrl.search,
+);
+const passwordError = requestedUrl.searchParams.has(PASSWORD_ERROR_PARAM);
 ---
 
 <Layout title={title} content={content} locale={locale}>
@@ -89,6 +106,20 @@ const showBadge = state ? shouldShowBadge(state.badge) : true;
 				</div>
 			) : (
 				!entry && <p class="mm-content">{t.fallbackText[mode]}</p>
+			)
+		}
+		{
+			showPassword && (
+				<form class="mm-password" method="post" action={options.accessPath}>
+					<p>{t.passwordPrompt}</p>
+					{passwordError && <p class="mm-error" role="alert">{t.passwordError}</p>}
+					<input type="hidden" name="return" value={returnPath} />
+					<label>
+						<span>{t.passwordLabel}</span>
+						<input type="password" name="password" required maxlength="256" autocomplete="current-password" />
+					</label>
+					<button type="submit">{t.passwordSubmit}</button>
+				</form>
 			)
 		}
 		{
@@ -132,6 +163,42 @@ const showBadge = state ? shouldShowBadge(state.badge) : true;
 	}
 	p.mm-content {
 		text-align: center;
+	}
+	.mm-password {
+		margin: 2rem auto 0;
+		max-width: 22rem;
+		display: grid;
+		gap: 0.6rem;
+	}
+	.mm-password p {
+		margin: 0;
+	}
+	.mm-password label {
+		display: grid;
+		gap: 0.3rem;
+		text-align: left;
+		font-size: 0.9rem;
+	}
+	.mm-password input {
+		font: inherit;
+		padding: 0.55rem 0.7rem;
+		border: 1px solid currentColor;
+		border-radius: 0.4rem;
+		background: transparent;
+		color: inherit;
+	}
+	.mm-password button {
+		font: inherit;
+		padding: 0.55rem 0.9rem;
+		border: 0;
+		border-radius: 0.4rem;
+		color: inherit;
+		background: color-mix(in srgb, currentColor 15%, transparent);
+		cursor: pointer;
+	}
+	.mm-error {
+		color: #c0392b;
+		font-size: 0.9rem;
 	}
 	.mm-badge {
 		margin: 2.5rem 0 0;

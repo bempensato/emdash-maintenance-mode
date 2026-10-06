@@ -217,3 +217,58 @@ describe("maintenance-mode plugin", () => {
 		expect(JSON.stringify(await h.transport.invokeHook("page:metadata", event))).toContain("noindex");
 	});
 });
+
+describe("guest access admin", () => {
+	it("creates, rotates and turns off the preview link", async () => {
+		const h = await setup();
+		await h.admin.act(PAGE, "link_enable");
+		const token = await h.inspect.setting<string>("previewToken");
+		expect(token).toMatch(/^[\w-]{43}$/);
+		const first = await runtime(h);
+		const { sha256Hex } = await import("../src/shared/crypto");
+		expect(first.guest.linkTokenHash).toBe(await sha256Hex(token!));
+		expect(texts((await h.admin.loadPage(PAGE)).blocks)).toContain(`https://example.com/?mm_access=${token}`);
+
+		await h.admin.act(PAGE, "link_regenerate");
+		const second = await runtime(h);
+		expect(second.guest.linkTokenHash).not.toBe(first.guest.linkTokenHash);
+		expect(await h.inspect.setting("previewToken")).not.toBe(token);
+
+		await h.admin.act(PAGE, "link_disable");
+		expect((await runtime(h)).guest.linkTokenHash).toBeNull();
+		expect(await h.inspect.setting("previewToken")).toBeNull();
+	});
+
+	it("stores only a hash of the password", async () => {
+		const h = await setup();
+		const res = await h.admin.submit(PAGE, "set_password", { password: "open sesame" });
+		expect(res.toast?.type).toBe("success");
+		const state = await runtime(h);
+		expect(state.guest.password).toMatchObject({ iterations: expect.any(Number) });
+		const { verifyPassword } = await import("../src/shared/crypto");
+		expect(await verifyPassword("open sesame", state.guest.password!)).toBe(true);
+		expect(JSON.stringify(await h.inspect.settings.raw("runtime"))).not.toContain("open sesame");
+
+		await h.admin.act(PAGE, "password_remove");
+		expect((await runtime(h)).guest.password).toBeNull();
+	});
+
+	it("rejects too short passwords", async () => {
+		const h = await setup();
+		const res = await h.admin.submit(PAGE, "set_password", { password: "abc" });
+		expect(res.toast?.type).toBe("error");
+		expect((await runtime(h)).guest.password).toBeNull();
+	});
+
+	it("saves the cookie duration and revokes all guests", async () => {
+		const h = await setup();
+		await h.admin.submit(PAGE, "save_cookie_days", { days: 7 });
+		expect((await runtime(h)).guest.cookieMaxAgeDays).toBe(7);
+		expect((await h.admin.submit(PAGE, "save_cookie_days", { days: 0 })).toast?.type).toBe("error");
+		expect((await h.admin.submit(PAGE, "save_cookie_days", { days: 400 })).toast?.type).toBe("error");
+
+		const before = (await runtime(h)).guest.cookieVersion;
+		await h.admin.act(PAGE, "revoke_all");
+		expect((await runtime(h)).guest.cookieVersion).toBe(before + 1);
+	});
+});

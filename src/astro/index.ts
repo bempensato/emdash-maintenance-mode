@@ -84,6 +84,12 @@ export default function maintenanceMode(userOptions: MaintenanceModeOptions = {}
 					prerender: false,
 				});
 
+				injectRoute({
+					pattern: accessPath,
+					entrypoint: new URL("./access.ts", import.meta.url),
+					prerender: false,
+				});
+
 				addMiddleware({
 					entrypoint: new URL("./middleware.ts", import.meta.url),
 					order: "post",

@@ -4,6 +4,7 @@ import * as z from "zod/mini";
 
 import { PACKAGE_VERSION, PLUGIN_SLUG, SETTING_KEYS } from "../shared/keys";
 import { BYPASS_ROLES, MODES, type BypassMinRole, type Mode, type PageRef, type RuntimeState } from "../shared/state";
+import { guestBlocks, handleGuestAction, handleGuestForm } from "./guest-admin";
 import { adminLocale, adminStrings, type AdminStrings } from "./i18n";
 import { ensureRuntime, updateRuntime } from "./store";
 
@@ -320,6 +321,9 @@ async function buildPage(
 		{ type: "context", text: t.pageHint },
 	);
 
+	// 4. Guest access
+	blocks.push({ type: "divider" }, ...(await guestBlocks(ctx, t, state, baseUrl)));
+
 	// 6. Setup check
 	blocks.push({ type: "divider" }, ...setupBlocks(ctx, t, companion));
 	return blocks;
@@ -373,9 +377,17 @@ export async function handleAdmin(
 			const enabled = interaction.action_id === "enable";
 			state = await updateRuntime(ctx, (s) => ({ ...s, enabled }));
 			toast = { type: "success", message: enabled ? t.turnedOn : t.turnedOff };
+		} else {
+			const result = await handleGuestAction(ctx, t, interaction.action_id);
+			if (result) ({ state, toast } = result);
 		}
-	} else if (interaction?.type === "form_submit" && interaction.action_id === "save_settings") {
-		({ state, toast } = await applySettings(ctx, t, interaction.values, state));
+	} else if (interaction?.type === "form_submit") {
+		if (interaction.action_id === "save_settings") {
+			({ state, toast } = await applySettings(ctx, t, interaction.values, state));
+		} else {
+			const result = await handleGuestForm(ctx, t, interaction.action_id, interaction.values, state);
+			if (result) ({ state, toast } = result);
+		}
 	}
 
 	const companion = parseCompanion(await ctx.settings.get(SETTING_KEYS.companion));

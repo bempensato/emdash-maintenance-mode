@@ -1,3 +1,5 @@
+import { PREVIEW_QUERY_PARAM } from "../shared/keys";
+import { guestCookieHeader, hasValidGuestCookie, isValidLinkToken, withoutGuestParams } from "./guest";
 import type { LoadedState } from "./state";
 
 /**
@@ -31,6 +33,12 @@ export interface GateDeps {
 	/** True when EmDash verified a `_preview` token for this request. */
 	hasValidPreview: (context: GateContext) => boolean;
 }
+
+/**
+ * Key in `locals` holding the URL the visitor asked for, so the maintenance
+ * page (reached through a rewrite) can build the password form's return path.
+ */
+export const ORIGINAL_URL_LOCAL = "emdashMaintenanceModeUrl";
 
 /** EmDash shows its editing toolbar from this role up (`request-context` middleware). */
 const EDIT_MIN_ROLE = 30;
@@ -103,7 +111,24 @@ export function createGate(deps: GateDeps) {
 			if (params.has("_preview") && deps.hasValidPreview(context)) return next();
 			if (params.has("_edit") && role >= EDIT_MIN_ROLE) return next();
 
+			// Preview link: trade the token for a cookie and drop it from the URL.
+			const token = params.get(PREVIEW_QUERY_PARAM);
+			if (token !== null && (await isValidLinkToken(token, state.guest))) {
+				return new Response(null, {
+					status: 302,
+					headers: {
+						Location: withoutGuestParams(context.url),
+						"Set-Cookie": await guestCookieHeader(state.guest, context.url),
+						"Cache-Control": "no-store",
+						"Referrer-Policy": "no-referrer",
+					},
+				});
+			}
+
+			if (await hasValidGuestCookie(context.request.headers.get("cookie"), state.guest)) return next();
+
 			retryAfterSeconds = state.retryAfterSeconds;
+			(context.locals as Record<string, unknown>)[ORIGINAL_URL_LOCAL] = context.url.href;
 			rewritten = await next(options.path);
 		} catch (error) {
 			console.error("[maintenance-mode] gate failed, serving the site:", error);
