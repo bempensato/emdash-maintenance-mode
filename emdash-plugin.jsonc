@@ -2,16 +2,15 @@
 	"$schema": "./node_modules/@emdash-cms/plugin-cli/schemas/emdash-plugin.schema.json",
 
 	"slug": "maintenance-mode",
-	// TODO: replace with the publisher's Atmosphere DID before the first release.
-	"publisher": "did:plc:placeholder000000000000",
+	// Atmosphere account @bempensato.bsky.social. Pinned as a DID because handles can change.
+	"publisher": "did:plc:f3in7i6onwmsmxykb7emfyru",
 
 	"name": "Maintenance Mode & Coming Soon",
 	"description": "Show a maintenance or coming soon page to visitors. Editable with live edit; guests get in by secret link or password.",
 	"keywords": ["maintenance mode", "coming soon", "under construction", "prelaunch", "password page"],
 	"license": "LicenseRef-Commercial",
 	"author": { "name": "Federico Bempensato" },
-	// TODO: replace with a real security contact before the first release.
-	"security": { "email": "security@example.invalid" },
+	"security": { "email": "support@bempensato.com" },
 	"repo": "https://github.com/bempensato/emdash-maintenance-mode",
 
 	// Trust contract — what runtime APIs the plugin asks for.
